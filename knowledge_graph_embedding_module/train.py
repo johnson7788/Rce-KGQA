@@ -9,27 +9,39 @@ from tqdm import tqdm
 
 
 class DataSet:
-
     def __init__(self, data_dir, reverse):
         self.train_data = self.load_data(data_dir, "train", reverse=reverse)
         self.valid_data = self.load_data(data_dir, "valid", reverse=reverse)
         self.test_data = self.load_data(data_dir, "test", reverse=reverse)
         self.data = self.train_data + self.valid_data + self.test_data
+        # 实体和关系的字典
         self.entities = sorted(list(set([d[0] for d in self.data] + [d[2] for d in self.data])))
         self.relations = sorted(list(set([d[1] for d in self.data])))
 
     @staticmethod
     def load_data(data_dir, data_type, reverse):
-        with open(f"{data_dir}\\{data_type}.txt", 'r', encoding='utf-8') as inp:
+        """
+        加载数据集
+        :param data_dir: './knowledge_graphs/MetaQA_half'
+        :type data_dir:
+        :param data_type: 'train'
+        :type data_type:
+        :param reverse: 是否把关系到过来在一次加入数据集
+        :type reverse: True
+        :return:
+        :rtype:
+        """
+        with open(f"{data_dir}/{data_type}.txt", 'r', encoding='utf-8') as inp:
             data = [line.strip().split('\t') for line in inp.readlines()]
             if reverse:
+                # 关系三元组的倒着排
                 data += [[i[2], i[1] + "_reverse", i[0]] for i in data]
         return data
 
 
 def set_fixed_seed(seed):
-    if not torch.cuda.is_available:
-        print('Sorry, you should buy an NVIDIA Graphic Processing Unit and set CUDA environment!')
+    if not torch.cuda.is_available():
+        print('需要cuda环境')
         exit(-1)
     torch.backends.cudnn.deterministic = True
     np.random.seed(seed)
@@ -38,7 +50,6 @@ def set_fixed_seed(seed):
 
 
 class Experiment:
-
     def __init__(self, input_dropout, hidden_dropout1, hidden_dropout2, learning_rate, ent_vec_dim, rel_vec_dim,
                  num_epochs, test_interval, batch_size, decay_rate, label_smoothing, dataset_name, data_dir,
                  model_dir, load_from, do_batch_norm):
@@ -46,21 +57,21 @@ class Experiment:
         self.input_dropout = input_dropout
         self.hidden_dropout1 = hidden_dropout1
         self.hidden_dropout2 = hidden_dropout2
-        self.do_batch_norm = do_batch_norm
+        self.do_batch_norm = do_batch_norm  # bool，是否批归一化
         self.learning_rate = learning_rate
-        self.ent_vec_dim = ent_vec_dim
-        self.rel_vec_dim = rel_vec_dim
-        self.num_epochs = num_epochs
-        self.test_interval = test_interval
+        self.ent_vec_dim = ent_vec_dim  # 200
+        self.rel_vec_dim = rel_vec_dim  # 200
+        self.num_epochs = num_epochs  #500
+        self.test_interval = test_interval  # 10
         self.batch_size = batch_size
-        self.decay_rate = decay_rate
-        self.label_smoothing = label_smoothing
+        self.decay_rate = decay_rate #1.0
+        self.label_smoothing = label_smoothing  #0.1
         # ========dataset stored and loaded==========
-        self.dataset_name = dataset_name
+        self.dataset_name = dataset_name  #'FB15k-237'
         # ====KG sources====
         # before you run next statement, you should make knowledge_graphs available in root directory.
         data_path = os.path.join(data_dir, self.dataset_name)
-        assert os.path.isdir(data_path)
+        assert os.path.isdir(data_path), f"数据目录{data_path}不存在，请检查"
         self.dataset = DataSet(data_dir=data_path, reverse=True)
         self.entity_idxs = {entity: i for i, entity in enumerate(self.dataset.entities)}
         self.relation_idxs = {relation: i for i, relation in enumerate(self.dataset.relations)}
@@ -78,7 +89,7 @@ class Experiment:
         self.load_from = load_from
 
     def get_data_idxs(self, triples):
-        """ 实体关系实体下标的三元组 [(234,13,424),..] """
+        """ 实体关系实体下标的三元组 [(234,13,424),..] , 实体的名字换成id的格式"""
         return [(self.entity_idxs[triple[0]], self.relation_idxs[triple[1]], self.entity_idxs[triple[2]]) for triple in triples]
 
     def get_hl_t(self, triples):  # h: head entity, l: relationship, t:tail entity.
@@ -171,8 +182,8 @@ class Experiment:
     def train_and_eval(self):
         best_eval = [0] * 5
         train_data_idxs = self.get_data_idxs(self.dataset.train_data)
-        print(f'dataset: {self.dataset_name}, entities: {len(self.dataset.entities)}, relations: \
-        {len(self.dataset.relations)}, training data count: {len(self.dataset.train_data)}.')
+        print(f'数据集名称: {self.dataset_name}, 实体数量: {len(self.dataset.entities)}, 关系数量: \
+        {len(self.dataset.relations)}, 训练集样本数: {len(self.dataset.train_data)}.')
         model = ComplEx_KGE(self.dataset, self.ent_vec_dim, do_batch_norm=self.do_batch_norm,
                             input_dropout=self.input_dropout, hidden_dropout1=self.hidden_dropout1,
                             hidden_dropout2=self.hidden_dropout2)
@@ -232,5 +243,5 @@ if __name__ == '__main__':
     experiment = Experiment(num_epochs=500, test_interval=10, batch_size=128, learning_rate=0.0005, ent_vec_dim=200,
                             rel_vec_dim=200, input_dropout=0.3, hidden_dropout1=0.4, hidden_dropout2=0.5,
                             label_smoothing=0.1, do_batch_norm=True, data_dir='./knowledge_graphs',
-                            model_dir='./kg_embeddings', dataset_name='FB15k-237', load_from='', decay_rate=1.0)
+                            model_dir='./kg_embeddings', dataset_name='MetaQA_half', load_from='', decay_rate=1.0)
     experiment.train_and_eval()

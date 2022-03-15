@@ -1,10 +1,9 @@
 # Rce-KGQA
-A novel pipeline framework for multi-hop complex KGQA task.
+一种用于多跳复杂KGQA任务的新型pipeline框架。
+该框架主要包括两个模块，**应答过滤模块**和**关系链推理模块**
+这两个模块应该独立训练，在参考步骤，将问题和KG加载到**应答_过滤_模块**输入中，然后获得前K名候选者
+，并以KG为单位检索这些候选对象的关系链，并让**关系链推理模块**向用户提供最终答案。
 
-This framework mainly contains two modules, **answering_filtering_module** and **relational_chain_reasoning_module**
-
-And this two module should be trained independently, at reference step, question and KG load into **answering_filtering_module** ad inputs, then get the top-K candidates
-,and retrieval these candidates` relational chain in KG, and let **relational_chain_reasoning_module** provide the final answer to USERS.
 > overall pipeline architecture 
 [See model](https://github.com/albert-jin/Rce-KGQA/blob/main/intros/all_architecture.pdf)
 
@@ -14,10 +13,10 @@ And this two module should be trained independently, at reference step, question
 >relational_chain_reasoning_module
 [See Module2](https://github.com/albert-jin/Rce-KGQA/blob/main/intros/relational_chain_reasoning.pdf)
 
-Statistical Performance Comparsion:
+统计性能比较：
 
-### Experimental results on three subsets of MetaQA. The first group of results was taken from papers on recent methods. The values are
-reported using hits@1.
+### 
+MetaQA三个子集的实验结果。第一组结果来自于关于最新方法的论文。这些值是使用hits@1.
 
 | Model | 1-hop MetaQA | 2-hop MetaQA | 3-hop MetaQA ||
 
@@ -36,9 +35,7 @@ reported using hits@1.
 | Our Model | 98.3 | 99.7 | 97.9 ||
 
 ### Experimental results on Answer Reasoning on WebQuestionsSP-tiny.
-
- Experiment results compared with SOTA methods on WebQuestionsSP-tiny test set. All QA pairs in WebQuestionsSP-tiny are 2-hop
-relational questions.
+在WebQuestionsSP-tiny测试集上，将实验结果与SOTA方法进行了比较。WebQuestionsSP tiny中的所有QA对都是两跳关系问题。
 
 | Model | WebQuestionsSP-tiny hit@1 ||
 
