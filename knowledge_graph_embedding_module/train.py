@@ -131,22 +131,23 @@ class Experiment:
         :rtype:
         """
         model.eval()
-        hits = [[]*10]
+        # 统计命中率
+        hits = [[] for _ in range(10)]
         ranks = []
         test_data_idxs = self.get_data_idxs(test_data)
         hl_vocab_t = self.get_hl_t(test_data_idxs)
         for i in tqdm(range(0, len(test_data_idxs), self.batch_size)):
             data_batch = np.array(test_data_idxs[i: i + self.batch_size])
-            e1_idx = torch.tensor(data_batch[:, 0])
-            r_idx = torch.tensor(data_batch[:, 1])
-            e2_idx = torch.tensor(data_batch[:, 2])
+            e1_idx = torch.tensor(data_batch[:, 0])  # 头实体id列表，一个batch的大小
+            r_idx = torch.tensor(data_batch[:, 1])   #关系id列表，一个batch的大小
+            e2_idx = torch.tensor(data_batch[:, 2])   # 尾实体id列表，一个batch的大小
             e1_idx = e1_idx.cuda()
             r_idx = r_idx.cuda()
             e2_idx = e2_idx.cuda()
-            predictions = model.get_scores(e1_idx, r_idx)
+            predictions = model.get_scores(e1_idx, r_idx)  # 放入模型， predictions： torch.Size([128, 43234])
             for j in range(data_batch.shape[0]):
-                filt = hl_vocab_t[(data_batch[j][0], data_batch[j][1])]
-                target_value = predictions[j, e2_idx[j]].item()
+                filt = hl_vocab_t[(data_batch[j][0], data_batch[j][1])]   # ground truth的尾实体
+                target_value = predictions[j, e2_idx[j]].item()  # 预测的尾实体
                 predictions[j, filt] = 0.0
                 predictions[j, e2_idx[j]] = target_value
             sort_values, sort_idxs = torch.sort(predictions, dim=1, descending=True)
@@ -246,9 +247,9 @@ class Experiment:
                 model.eval()
                 with torch.no_grad():
                     start_test = time.time()
-                    print('验证集结果:')
+                    print('验证集评估结果:')
                     valid_res = self.evaluate(model, self.dataset.valid_data)  # mrr, meanrank, hitat10, hitat3, hitat1
-                    print('测试集结果:')
+                    print('测试集评估结果:')
                     test_res = self.evaluate(model, self.dataset.test_data)  # mrr, meanrank, hitat10, hitat3, hitat1
                     eval_res = (np.add(test_res, valid_res))/2
                     if eval_res[0] >= best_eval[0]:
@@ -268,7 +269,7 @@ class Experiment:
 
 if __name__ == '__main__':
     set_fixed_seed(seed=199839)
-    experiment = Experiment(num_epochs=500, test_interval=10, batch_size=128, learning_rate=0.0005, ent_vec_dim=200,
+    experiment = Experiment(num_epochs=500, test_interval=2, batch_size=128, learning_rate=0.0005, ent_vec_dim=200,
                             rel_vec_dim=200, input_dropout=0.3, hidden_dropout1=0.4, hidden_dropout2=0.5,
                             label_smoothing=0.1, do_batch_norm=True, data_dir='./knowledge_graphs',
                             model_dir='./kg_embeddings', dataset_name='MetaQA_half', load_from='', decay_rate=1.0)
