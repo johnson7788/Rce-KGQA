@@ -100,14 +100,36 @@ class Experiment:
         return er_vocab
 
     def get_batch(self, er_vocab, er_vocab_pairs, idx):
+        """
+        一个批次的数据获取
+        :param er_vocab:  头实体+关系== 尾实体的列表 的集合
+        :type er_vocab:  defaultdict
+        :param er_vocab_pairs: 头实体+关系的 列表
+        :type er_vocab_pairs:  list
+        :param idx: 0, 从0到一个batch_size的大小的数据
+        :type idx: int
+        :return:
+        :rtype:
+        """
         batch = er_vocab_pairs[idx:idx + self.batch_size]
+        # [batch_size, 所有实体的数量], eg:torch.Size([128, 43234])
         targets = torch.zeros([len(batch), len(self.dataset.entities)], dtype=torch.float32)
         targets = targets.cuda()
         for idx, pair in enumerate(batch):
+            #er_vocab[pair] 是尾实体的id的列表， 仅让43234中的某个或某些尾实体位置为1，数据有些稀疏
             targets[idx, er_vocab[pair]] = 1.
         return np.array(batch), targets
 
     def evaluate(self, model, test_data):
+        """
+        模型评估
+        :param model:
+        :type model:
+        :param test_data:
+        :type test_data:
+        :return:
+        :rtype:
+        """
         model.eval()
         hits = [[]*10]
         ranks = []
@@ -192,9 +214,9 @@ class Experiment:
         model.cuda()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         scheduler = ExponentialLR(optimizer, gamma=self.decay_rate) if 1 > self.decay_rate > 0 else None
-        er_vocab = self.get_hl_t(train_data_idxs)
-        er_vocab_pairs = list(er_vocab.keys())
-        print("starting training...")
+        er_vocab = self.get_hl_t(train_data_idxs)  #头实体+关系 = 尾实体的列表
+        er_vocab_pairs = list(er_vocab.keys())    # 头实体和关系对
+        print("开始训练...")
         start_train = time.time()
         for epo in range(self.num_epochs):
             epoch_idx = epo + 1
@@ -203,39 +225,45 @@ class Experiment:
             losses = []
             np.random.shuffle(er_vocab_pairs)
             for j in tqdm(range(0, len(er_vocab_pairs), self.batch_size)):
+                # data_batch 是头实体+关系[batch_size,2], 2代表的头实体的id+关系的id， targets是尾实体变成向量，[batch_size, 所有实体的数量], eg:torch.Size([128, 43234])
                 data_batch, targets = self.get_batch(er_vocab, er_vocab_pairs, j)
                 if self.label_smoothing:
+                    # 标签平滑，标签不设置为0
                     targets = ((1.0 - self.label_smoothing) * targets) + (1.0 / targets.size(1))
                 optimizer.zero_grad()
+                # 获取头实体的id
                 e1_idx = torch.tensor(data_batch[:, 0]).cuda()
+                # 获取关系的id
                 r_idx = torch.tensor(data_batch[:, 1]).cuda()
+                # 放入模型
                 loss = model(e1_idx, r_idx, targets)
                 loss.backward()
                 optimizer.step()
+                # 损z失放入到列表中
                 losses.append(loss.item())
             print('epoch:', epoch_idx, 'epoch time:', time.time() - start_epoch, 'loss:', np.mean(losses))
             if epoch_idx % self.test_interval == 0:
                 model.eval()
                 with torch.no_grad():
                     start_test = time.time()
-                    print('validation results:')
+                    print('验证集结果:')
                     valid_res = self.evaluate(model, self.dataset.valid_data)  # mrr, meanrank, hitat10, hitat3, hitat1
-                    print('test results:')
+                    print('测试集结果:')
                     test_res = self.evaluate(model, self.dataset.test_data)  # mrr, meanrank, hitat10, hitat3, hitat1
                     eval_res = (np.add(test_res, valid_res))/2
                     if eval_res[0] >= best_eval[0]:
                         best_eval = eval_res
-                        print(f'evaluation MRR increased, saving checkpoint to {self.best_model_save_dir}')
+                        print(f'评估集的评估指标MRR增长, 保存 checkpoint 到 {self.best_model_save_dir}')
                         self.save_checkpoint(model, model_dir=self.best_model_save_dir)
-                        print('best model saved!')
-                        print('overall best evaluation:', best_eval)
+                        print('best model 已保存!')
+                        print('评估集最好的指标值的集合:', best_eval)
                     print(f'test time cost: [{time.time() - start_test}]')
             if scheduler:
                 scheduler.step(epoch=None)
-        print(f'training over, saving checkpoint to {self.final_model_save_dir}')
+        print(f'训练完成 ，保存最终checkpoint到： {self.final_model_save_dir}')
         self.save_checkpoint(model, model_dir=self.final_model_save_dir)
-        print('final model saved!')
-        print(f'total time cost: [{time.time() - start_train}]')
+        print('模型保存完成')
+        print(f'最终训练时间: [{time.time() - start_train}]')
 
 
 if __name__ == '__main__':

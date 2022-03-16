@@ -42,54 +42,68 @@ class ComplEx_KGE(torch.nn.Module):
     def complex_scorer(self, head, relation):
         """
 
-        :param head:
+        :param head:   torch.Size([128, 400])
         :type head:
-        :param relation:
+        :param relation:   torch.Size([128, 400])
         :type relation:
         :return:
         :rtype:
         """
+        # list(torch.chunk(head, 2, dim=1)) -->拆分成2个维度是[batch_size, embedding_dim/2]的维度的tensor
+        # 然后维度1上堆叠: torch.Size([128, 2, 200])
         head = torch.stack(list(torch.chunk(head, 2, dim=1)), dim=1)
         if self.do_batch_norm:
+            # 是否做BN
             head = self.head_bn(head)
+        # torch.Size([128, 2, 200])
         head = self.dropout0_layer(head)
+        # 维度转换torch.Size([2, 128, 200])
         head = head.permute(1, 0, 2)
-        re_head = head[0]
+        re_head = head[0]  # 头实体向量拆分成2半
         im_head = head[1]
-
+        # 关系经过dropout后，也拆分成2部分， torch.Size([128, 200])和torch.Size([128, 200])
         relation = self.dropout1_layer(relation)
         re_relation, im_relation = torch.chunk(relation, 2, dim=1)
+        # 形状都是 torch.Size([43234, 200])
         re_tail, im_tail = torch.chunk(self.E.weight, 2, dim=1)
-
+        # 分数计算，为什么这样计算？？？  re_score：torch.Size([128, 200]) im_score: torch.Size([128, 200])
         re_score = re_head * re_relation - im_head * im_relation
         im_score = re_head * im_relation + im_head * re_relation
-
+        # score: torch.Size([128, 2, 200])
         score = torch.stack([re_score, im_score], dim=1)
         if self.do_batch_norm:
             score = self.score_bn(score)
         score = self.dropout2_layer(score)
+        # score: torch.Size([2, 128, 200])
         score = score.permute(1, 0, 2)
+        # im_score: re_score: torch.Size([128, 200])
         re_score = score[0]
         im_score = score[1]
+        #torch.mm(re_score, re_tail.transpose(1, 0)) -> torch.Size([128, 43234]),  answers_logit:torch.Size([128, 43234])
         answers_logit = torch.mm(re_score, re_tail.transpose(1, 0)) + torch.mm(im_score, im_tail.transpose(1, 0))
+        # answers_score: torch.Size([128, 43234])
         answers_score = torch.sigmoid(answers_logit)
         return answers_score
 
     def forward(self, h_idx, r_idx, targets):
         """
 
-        :param h_idx:
+        :param h_idx: 头实体id
         :type h_idx:
-        :param r_idx:
+        :param r_idx: 关系id
         :type r_idx:
-        :param targets:
+        :param targets: 尾实体的id经过标签平滑
         :type targets:
         :return:
         :rtype:
         """
-        h = self.E(h_idx.long())
-        r = self.R(r_idx.long())
+        # h:torch.Size([128, 400])  [batch_size, embedding_dim]
+        h = self.E(h_idx.long())  # 头实体id进行embedding
+        # r：torch.Size([128, 400]) [batch_size, embedding_dim]
+        r = self.R(r_idx.long())   #关系id进行embedding
+        #answers_score: torch.Size([128, 43234])
         answers_score = self.complex_scorer(h, r)
+        #targets: torch.Size([128, 43234])
         loss = self.bce_loss(answers_score, targets)
         return loss
 
