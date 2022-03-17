@@ -70,18 +70,18 @@ class MetaQADataSet(Dataset):
         return len(self.results)
 
     def __getitem__(self, index):
-        qa_pair = self.results[index]
+        qa_pair = self.results[index]   #问题对，['Bjørn Lomborg', 'NE written_by_reverse', ['Cool It']]
         # ==head entity text==
-        text_head = qa_pair[0]
-        head_idx = self.entities2idx[text_head]
+        text_head = qa_pair[0]   #头实体，'Bjørn Lomborg'
+        head_idx = self.entities2idx[text_head] #头实体到id，4084
         # ==text question==
-        text_q = qa_pair[1]
-        idx_q = [self.word_idx[word] for word in text_q.split()]
+        text_q = qa_pair[1]   #问题 'NE written_by_reverse'
+        idx_q = [self.word_idx[word] for word in text_q.split()]  #问题变成id， [4, 102]
         # ==tail entity text==
-        text_tails = qa_pair[2]
-        idx_tails = [self.entities2idx[tail_text] for tail_text in text_tails]
+        text_tails = qa_pair[2]  #答案['Cool It']
+        idx_tails = [self.entities2idx[tail_text] for tail_text in text_tails]  #答案变成id， [6940]
         onehot_tail = torch.zeros(self.entities_count)
-        onehot_tail.scatter_(0, torch.tensor(idx_tails), 1)
+        onehot_tail.scatter_(0, torch.tensor(idx_tails), 1)   #43234
         return idx_q, head_idx, onehot_tail
 
 
@@ -118,18 +118,20 @@ class MetaQADataLoader(DataLoader):
         :param batch_data: dataset __getitem__ outputs.
         :return: batch_questions_index, batch_questions_length, batch_head_entity, batch_onehot_answers, max_sent_len
         """
-        sorted_qa_pairs = list(sorted(batch_data, key=lambda x: len(x[0]), reverse=True))
-        sorted_qa_pairs_len = [len(qa_pair[0]) for qa_pair in sorted_qa_pairs]
-        max_sent_len = len(sorted_qa_pairs[0][0])
+        sorted_qa_pairs = list(sorted(batch_data, key=lambda x: len(x[0]), reverse=True))  #[batch_size]
+        sorted_qa_pairs_len = [len(qa_pair[0]) for qa_pair in sorted_qa_pairs]  #问题的长度，即问题的单词的个数
+        max_sent_len = len(sorted_qa_pairs[0][0])   #最长的问题
         padded_questions = []  # torch.zeros(batch_size, max_sent_len, dtype=torch.long)
         head_idxs = []
         onehot_tails = []
         for idx_q, head_idx, onehot_tail in sorted_qa_pairs:
-            padded_questions.append(idx_q + [0] * (max_sent_len - len(idx_q)))
-            head_idxs.append(head_idx)
-            onehot_tails.append(onehot_tail)
-        return torch.tensor(padded_questions, dtype=torch.long), torch.tensor(sorted_qa_pairs_len, dtype=torch.long), \
-               torch.tensor(head_idxs), torch.tensor(onehot_tails), max_sent_len
+            padded_questions.append(idx_q + [0] * (max_sent_len - len(idx_q)))    # 问题
+            head_idxs.append(head_idx)  # 头实体
+            onehot_tails.append(onehot_tail)  #答案
+        padded_questions_tensor = torch.tensor(padded_questions, dtype=torch.long)
+        sorted_qa_pairs_len_tensor = torch.tensor(sorted_qa_pairs_len, dtype=torch.long)
+        onehot_tails_tensor = torch.stack(onehot_tails)
+        return padded_questions_tensor, sorted_qa_pairs_len_tensor, torch.tensor(head_idxs), onehot_tails_tensor, max_sent_len
 
 
 # ====test and dev dataloader====

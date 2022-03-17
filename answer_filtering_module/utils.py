@@ -34,10 +34,10 @@ def masked_softmax(scores, src_lengths, src_length_masking=True):
 class Attention_layer(torch.nn.Module):
     def __init__(self, hidden_dim, attention_dim, src_length_masking=True):
         super(Attention_layer, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.attention_dim = attention_dim
-        self.src_length_masking = src_length_masking
-        self.proj_w = torch.nn.Linear(self.hidden_dim, self.attention_dim, bias=True)
+        self.hidden_dim = hidden_dim #400
+        self.attention_dim = attention_dim   #800
+        self.src_length_masking = src_length_masking  #True
+        self.proj_w = torch.nn.Linear(self.hidden_dim, self.attention_dim, bias=True)  #Linear(in_features=400, out_features=800, bias=True)
         self.proj_v = torch.nn.Linear(self.attention_dim, 1, bias=False)
 
     def forward(self, inputs, inputs_length):

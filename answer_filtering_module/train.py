@@ -71,15 +71,15 @@ if load_from:
     model = torch.load(load_from)
 model.to(device=torch.device('cuda'))
 model.train()
-# ====training hyper-parameters prepare=====
-TRAINING_RESULTS_DIR = os.path.join('.', '_'.join([KG_NAME, "half" if KG_HALF else "full", str(HOPS), 'hop',
+# ====training hyper-parameters prepare=====   TRAINING_RESULTS_DIR： './MetaQA__1_hop_Thu_Mar_17_11_36_06_2022'
+TRAINING_RESULTS_DIR = os.path.join('.', '_'.join([KG_NAME, "half" if KG_HALF else "", str(HOPS), 'hop',
                                                    time.asctime().replace(' ', '_').replace(':', '_')]))
 if not os.path.isdir(TRAINING_RESULTS_DIR):
     os.mkdir(TRAINING_RESULTS_DIR)
 if not os.path.exists(os.path.join(TRAINING_RESULTS_DIR, 'word_idx.txt')):
     with open(os.path.join(TRAINING_RESULTS_DIR, 'word_idx.txt'), 'wt', encoding='utf-8') as outp:
         for word, idx in word_idx.items():
-            outp.write(word + '\t' + idx + '\n')
+            outp.write(f"{word}'\t'{idx}'\n'")
 best_model_path = os.path.join(TRAINING_RESULTS_DIR, 'best_afm_model.pt')
 final_model_path = os.path.join(TRAINING_RESULTS_DIR, 'final_afm_model.pt')
 N_EPOCHS = 200

@@ -32,25 +32,45 @@ class Answer_filtering_module(torch.nn.Module):
         self.relation_dim = relation_dim * 2
         self.loss_criterion = torch.nn.BCELoss(reduction='sum')
         # hidden_dim * 2 is the BiLSTM + attention layer output
-        self.fc_lstm2hidden = torch.nn.Linear(hidden_dim * 2, fc_hidden_dim, bias=True)
+        self.fc_lstm2hidden = torch.nn.Linear(hidden_dim * 2, fc_hidden_dim, bias=True)  #Linear(in_features=400, out_features=400, bias=True)
         torch.nn.init.xavier_normal_(self.fc_lstm2hidden.weight.data)
         torch.nn.init.constant_(self.fc_lstm2hidden.bias.data, val=0.0)
-        self.fc_hidden2relation = torch.nn.Linear(fc_hidden_dim, self.relation_dim, bias=False)
+        self.fc_hidden2relation = torch.nn.Linear(fc_hidden_dim, self.relation_dim, bias=False)  #Linear(in_features=400, out_features=800, bias=False)
         torch.nn.init.xavier_normal_(self.fc_hidden2relation.weight.data)
-        self.entity_embedding_layer = torch.nn.Embedding.from_pretrained(torch.tensor(entity_embeddings), freeze=True)
-        self.word_embedding_layer = torch.nn.Embedding(vocab_size, word_dim)
-        self.BiLSTM = torch.nn.LSTM(embedding_dim, hidden_dim, 1, bidirectional=True, batch_first=True)
+        self.entity_embedding_layer = torch.nn.Embedding.from_pretrained(torch.tensor(entity_embeddings), freeze=True)  #Embedding(43234, 400)
+        self.word_embedding_layer = torch.nn.Embedding(vocab_size, word_dim) #Embedding(117, 256)
+        self.BiLSTM = torch.nn.LSTM(embedding_dim, hidden_dim, 1, bidirectional=True, batch_first=True)  #LSTM(400, 200, batch_first=True, bidirectional=True)
         self.softmax_layer = torch.nn.LogSoftmax(dim=-1)
         self.attention_layer = Attention_layer(hidden_dim=2 * hidden_dim, attention_dim=4 * hidden_dim)
         self.head_bn = torch.nn.BatchNorm1d(2)
-        head_bn_params_dict = np.load(head_bn_filepath)
-        for key in head_bn_params_dict:
-            self.head_bn[key].data = torch.tensor(head_bn_params_dict[key])
+        # 加载head和score2个层的参数
+        head_bn_params_dict = np.load(head_bn_filepath, allow_pickle=True)
+        for key in head_bn_params_dict.item():
+            # 把weight，bias，running_mean，running_var分别进行tensor
+            if key == "weight":
+                self.head_bn.weight.data = torch.tensor(head_bn_params_dict.item()[key])
+            elif key == "bias":
+                self.head_bn.bias.data = torch.tensor(head_bn_params_dict.item()[key])
+            elif key == "running_mean":
+                self.head_bn.running_mean.data = torch.tensor(head_bn_params_dict.item()[key])
+            elif key == "running_var":
+                self.head_bn.running_var.data = torch.tensor(head_bn_params_dict.item()[key])
+            else:
+                raise Exception(f"未找到对应的参数名称: {key}")
         self.score_bn = torch.nn.BatchNorm1d(2)
-        score_bn_params_dict = np.load(score_bn_filepath)
-        for key in score_bn_params_dict:
-            self.score_bn[key].data = torch.tensor(score_bn_params_dict[key])
-
+        score_bn_params_dict = np.load(score_bn_filepath, allow_pickle=True)
+        for key in score_bn_params_dict.item():
+            # 把weight，bias，running_mean，running_var分别进行tensor
+            if key == "weight":
+                self.score_bn.weight.data = torch.tensor(score_bn_params_dict.item()[key])
+            elif key == "bias":
+                self.score_bn.bias.data = torch.tensor(score_bn_params_dict.item()[key])
+            elif key == "running_mean":
+                self.score_bn.running_mean.data = torch.tensor(score_bn_params_dict.item()[key])
+            elif key == "running_var":
+                self.score_bn.running_var.data = torch.tensor(score_bn_params_dict.item()[key])
+            else:
+                raise Exception(f"未找到对应的参数名称: {key}")
     def complex_scorer(self, head, relation):
         head = torch.stack(list(torch.chunk(head, 2, dim=1)), dim=1)
         head = self.head_bn(head)
@@ -69,8 +89,22 @@ class Answer_filtering_module(torch.nn.Module):
         return torch.sigmoid(torch.mm(re_score, re_tail.transpose(1, 0)) + torch.mm(im_score, im_tail.transpose(1, 0)))
 
     def forward(self, question, questions_length, head_entity, tail_entity, max_sent_len):
-        """batch_questions_index, batch_questions_length, batch_head_entity, batch_onehot_answers, max_sent_len"""
-        embedded_question = self.word_embedding_layer(question.unsqueeze(0))
+        """
+
+        :param question:  问题id
+        :type question: torch.Size([128, 9])
+        :param questions_length:  每个问题的长度
+        :type questions_length: 128
+        :param head_entity:
+        :type head_entity: 128
+        :param tail_entity: 答案
+        :type tail_entity: torch.Size([128, 43234])
+        :param max_sent_len: 最大问题的长度
+        :type max_sent_len: 9
+        :return:
+        :rtype:
+        """
+        embedded_question = self.word_embedding_layer(question.unsqueeze(0))  #torch.Size([1, 128, 9, 256])
         packed_input = pack_padded_sequence(embedded_question, questions_length, batch_first=True)
         packed_output, _ = self.BiLSTM(packed_input)
         output, _ = pad_packed_sequence(packed_output, batch_first=True, padding_value=0.0, total_length=max_sent_len)
