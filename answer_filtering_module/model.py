@@ -7,6 +7,27 @@ import numpy as np
 class Answer_filtering_module(torch.nn.Module):
     def __init__(self, entity_embeddings, embedding_dim, vocab_size, word_dim, hidden_dim, fc_hidden_dim, relation_dim,
                  head_bn_filepath, score_bn_filepath):
+        """
+
+        :param entity_embeddings: (43234, 400)
+        :type entity_embeddings:
+        :param embedding_dim: 400
+        :type embedding_dim:
+        :param vocab_size: 117
+        :type vocab_size:
+        :param word_dim: 256
+        :type word_dim:
+        :param hidden_dim: 200
+        :type hidden_dim:
+        :param fc_hidden_dim: 400
+        :type fc_hidden_dim:
+        :param relation_dim: 400
+        :type relation_dim:
+        :param head_bn_filepath: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/head_bn.npy'
+        :type head_bn_filepath:
+        :param score_bn_filepath: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/score_bn.npy'
+        :type score_bn_filepath:
+        """
         super(Answer_filtering_module, self).__init__()
         self.relation_dim = relation_dim * 2
         self.loss_criterion = torch.nn.BCELoss(reduction='sum')

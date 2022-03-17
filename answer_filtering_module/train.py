@@ -9,42 +9,42 @@ from collections import OrderedDict
 import numpy as np
 
 if not torch.cuda.is_available:
-    print('Sorry, you should buy an NVIDIA Graphic Processing Unit and set CUDA environment!')
+    print('使用显卡的环境')
     exit(-1)
 # =========
 KG_NAME = 'MetaQA'
 assert KG_NAME in ['MetaQA', 'FB15k-237', 'WebquestionsSP-tiny']
-# =========
+# =========， 使用几跳的数据
 HOPS = 1
 assert HOPS in [1, 2, 3]
 # =========
-KG_HALF = True
+KG_HALF = False
 assert type(KG_HALF) is bool
 # =========
 if KG_NAME == 'MetaQA':
     QA_PAIRS_PATH = f'../QA/MetaQA/{"half_" if KG_HALF else ""}qa_%s_{str(HOPS)}hop.txt'
 else:
     QA_PAIRS_PATH = f'../QA/WebQuestionsSP/qa_%s_webqsp.txt'
-qa_traindataset_path = QA_PAIRS_PATH % 'train'
+qa_traindataset_path = QA_PAIRS_PATH % 'train'  #训练集文件位置
 qa_devdataset_path = QA_PAIRS_PATH % 'dev'
 qa_testdataset_path = QA_PAIRS_PATH % 'test'
 # ====dataloader prepare=====
 BEST_OR_FINAL = 'best'
 assert BEST_OR_FINAL in ['best', 'final']
-KG_EMBED_PATH = f'../knowledge_graph_embedding_module/kg_embeddings/{KG_NAME}{"_half" if KG_HALF else "_full"}/' \
+KG_EMBED_PATH = f'../knowledge_graph_embedding_module/kg_embeddings/{KG_NAME}{"_half" if KG_HALF else ""}/' \
                 f'{BEST_OR_FINAL}_checkpoint/%s'
 score_bn_path = KG_EMBED_PATH % 'score_bn.npy'
 head_bn_path = KG_EMBED_PATH % 'head_bn.npy'
-R_path = KG_EMBED_PATH % 'R.npy'
-E_path = KG_EMBED_PATH % 'E.npy'
+R_path = KG_EMBED_PATH % 'R.npy'  #关系的嵌入
+E_path = KG_EMBED_PATH % 'E.npy'  # 实体的嵌入
 entity_dict_path = KG_EMBED_PATH % 'entities_idx.dict'
 relation_dict_path = KG_EMBED_PATH % 'relations_idx.dict'
 batch_size = 128
-
+# 加载数据集
 qa_dataloader = MetaQADataLoader(entity_embed_path=E_path, entity_dict_path=entity_dict_path, relation_embed_path=R_path
                                  , relation_dict_path=relation_dict_path, qa_dataset_path=qa_traindataset_path,
                                  batch_size=batch_size)
-word_idx = qa_dataloader.dataset.word_idx
+word_idx = qa_dataloader.dataset.word_idx  #单词到id的映射，117个，这也太少了
 qa_dev_dataloader = DEV_MetaQADataLoader(word_idx=word_idx, entity_dict_path=entity_dict_path,
                                          relation_dict_path=relation_dict_path,
                                          qa_dataset_path=qa_devdataset_path)
@@ -52,11 +52,11 @@ qa_test_dataloader = DEV_MetaQADataLoader(word_idx=word_idx, entity_dict_path=en
                                           relation_dict_path=relation_dict_path,
                                           qa_dataset_path=qa_testdataset_path)
 # ====model hyper-parameters prepare=====
-entity_embeddings = qa_dataloader.dataset.entity_embeddings
-embedding_dim = entity_embeddings.shape[-1]
-relation_embeddings = qa_dataloader.dataset.relation_embeddings
-relation_dim = relation_embeddings.shape[-1]
-vocab_size = len(qa_dataloader.dataset.word_idx)
+entity_embeddings = qa_dataloader.dataset.entity_embeddings   #实体嵌入: (43234, 400)
+embedding_dim = entity_embeddings.shape[-1]  #400
+relation_embeddings = qa_dataloader.dataset.relation_embeddings  #(18, 400)
+relation_dim = relation_embeddings.shape[-1]  #400
+vocab_size = len(qa_dataloader.dataset.word_idx)  # 117
 word_dim = 256
 hidden_dim = 200
 fc_hidden_dim = 400

@@ -8,19 +8,19 @@ class MetaQADataSet(Dataset):
                  split):
         """
             create MetaQADataSet
-        :param entity_embed_path:
-        :param entity_dict_path: filepath for mapping entity to index
-        :param relation_embed_path:
-        :param relation_dict_path:  filepath for mapping relation to index
-        :param qa_dataset_path:
+        :param entity_embed_path: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/E.npy'
+        :param entity_dict_path: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/entities_idx.dict'
+        :param relation_embed_path: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/R.npy'
+        :param relation_dict_path:  '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/relations_idx.dict'
+        :param qa_dataset_path: '../QA/MetaQA/qa_train_1hop.txt'
         :param split:
         """
-        # ====load entity & relation embeddings====
+        # ====加载实体和关系的嵌入====
         self.entity_embeddings = np.load(entity_embed_path)
         self.relation_embeddings = np.load(relation_embed_path)
         # ====load entity & relation dict (mapping word into index)====
-        self.entities2idx = dict()
-        self.relations2idx = dict()
+        self.entities2idx = dict()   #所有实体到id的映射
+        self.relations2idx = dict()  #所有关系到id的映射
         with open(entity_dict_path, 'rt', encoding='utf-8') as e_d, open(relation_dict_path, 'rt',
                                                                          encoding='utf-8') as r_d:
             for line in e_d:
@@ -29,24 +29,24 @@ class MetaQADataSet(Dataset):
             for line in r_d:
                 mapping = line.strip().split('\t')
                 self.relations2idx[mapping[0]] = int(mapping[1])
-        self.entities_count = len(self.entities2idx)
-        self.relations_count = len(self.relations2idx)
+        self.entities_count = len(self.entities2idx)  #实体数量43234
+        self.relations_count = len(self.relations2idx)  #关系数量18
 
-        # ====load QA pairs====
+        # ===加载问答对====
         self.results = []
         with open(qa_dataset_path, 'rt', encoding='utf-8') as inp_:
             for line in inp_.readlines():
                 try:
                     line = line.strip().split('\t')
-                    question = line[0]
+                    question = line[0]   #'what movies are about [ginger rogers]'
                     q_temp = question.split('[')
-                    topic_entity = q_temp[1].split(']')[0]
-                    question = q_temp[0] + 'NE' + q_temp[1].split(']')[1]
-                    answers = [i.strip() for i in line[1].split('|')]
+                    topic_entity = q_temp[1].split(']')[0]   #主题实体： 'ginger rogers'
+                    question = q_temp[0] + 'NE' + q_temp[1].split(']')[1]   # 'what movies are about NE'， 为什么加上NE
+                    answers = [i.strip() for i in line[1].split('|')]  #答案: ['Top Hat', 'Kitty Foyle', 'The Barkleys of Broadway']
                     self.results.append([topic_entity.strip(), question.strip(), answers])
                 except RuntimeError:
                     continue
-        assert len(self.results) > 0, f'read no qa-pairs in file [{qa_dataset_path}]'
+        assert len(self.results) > 0, f'读取问答对失败 [{qa_dataset_path}]'
         if split:
             split_result = []
             for qa_pair in self.results:
@@ -54,11 +54,11 @@ class MetaQADataSet(Dataset):
                     split_result.append([qa_pair[0], qa_pair[1], answer])
             self.results = split_result
         # ====get word <=> idx mapping====
-        self.idx_word = dict()
-        self.word_idx = dict()
+        self.idx_word = dict()   # 单词到id的映射， {'what': 0, 'movies': 1, 'are': 2}
+        self.word_idx = dict()   #id到单词的映射
         self.max_sent_length = 0
         for qa_pair in self.results:  # retrieval all questions
-            words = qa_pair[1].split()
+            words = qa_pair[1].split()   #['what', 'movies', 'are', 'about', 'NE']
             if len(words) > self.max_sent_length:
                 self.max_sent_length = len(words)
             for word in words:
@@ -88,6 +88,25 @@ class MetaQADataSet(Dataset):
 class MetaQADataLoader(DataLoader):
     def __init__(self, entity_embed_path, entity_dict_path, relation_embed_path, relation_dict_path, qa_dataset_path,
                  batch_size, split=False, shuffle=True):
+        """
+
+        :param entity_embed_path:  '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/E.npy'
+        :type entity_embed_path:
+        :param entity_dict_path: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/entities_idx.dict'
+        :type entity_dict_path:
+        :param relation_embed_path: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/R.npy'
+        :type relation_embed_path:
+        :param relation_dict_path: '../knowledge_graph_embedding_module/kg_embeddings/MetaQA/best_checkpoint/relations_idx.dict'
+        :type relation_dict_path:
+        :param qa_dataset_path:  '../QA/MetaQA/qa_train_1hop.txt'
+        :type qa_dataset_path:
+        :param batch_size: 128
+        :type batch_size:
+        :param split: False
+        :type split:
+        :param shuffle: True
+        :type shuffle:
+        """
         dataset = MetaQADataSet(entity_embed_path, entity_dict_path, relation_embed_path, relation_dict_path,
                                 qa_dataset_path, split)
         super(MetaQADataLoader, self).__init__(dataset=dataset, batch_size=batch_size, shuffle=shuffle,

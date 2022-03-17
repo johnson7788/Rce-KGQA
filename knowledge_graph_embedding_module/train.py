@@ -272,5 +272,5 @@ if __name__ == '__main__':
     experiment = Experiment(num_epochs=500, test_interval=2, batch_size=128, learning_rate=0.0005, ent_vec_dim=200,
                             rel_vec_dim=200, input_dropout=0.3, hidden_dropout1=0.4, hidden_dropout2=0.5,
                             label_smoothing=0.1, do_batch_norm=True, data_dir='./knowledge_graphs',
-                            model_dir='./kg_embeddings', dataset_name='MetaQA_half', load_from='', decay_rate=1.0)
+                            model_dir='./kg_embeddings', dataset_name='MetaQA', load_from='', decay_rate=1.0)
     experiment.train_and_eval()

@@ -7,8 +7,8 @@ class ComplEx_KGE(torch.nn.Module):
 
         :param d:  数据集class DataSet的实例化
         :type d:
-        :param entity_dim:
-        :type entity_dim:
+        :param entity_dim: 实体维度
+        :type entity_dim: 200
         :param do_batch_norm: bool:  True
         :type do_batch_norm:
         :param input_dropout:  0.3
@@ -41,7 +41,7 @@ class ComplEx_KGE(torch.nn.Module):
 
     def complex_scorer(self, head, relation):
         """
-
+        返回计算的logits
         :param head:   torch.Size([128, 400])
         :type head:
         :param relation:   torch.Size([128, 400])
@@ -101,7 +101,7 @@ class ComplEx_KGE(torch.nn.Module):
         h = self.E(h_idx.long())  # 头实体id进行embedding
         # r：torch.Size([128, 400]) [batch_size, embedding_dim]
         r = self.R(r_idx.long())   #关系id进行embedding
-        #answers_score: torch.Size([128, 43234])
+        #answers_score: torch.Size([128, 43234])，answers_score 就是logits
         answers_score = self.complex_scorer(h, r)
         #targets: torch.Size([128, 43234])
         loss = self.bce_loss(answers_score, targets)
